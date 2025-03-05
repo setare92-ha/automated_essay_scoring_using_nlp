@@ -4,6 +4,8 @@ import spacy
 import nltk
 from collections import Counter
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from spacy_syllables import SpacySyllables
 
@@ -40,6 +42,23 @@ def extract_arguments(sentence):
 def extract_lemmas(sentence):
     sent_lemmas = {token.lemma_ for token in sentence}
     return sent_lemmas
+
+
+def compute_lsa_overlap(corpus):
+    vectorizer = TfidfVectorizer()
+    tfid_mat = vectorizer.fit_transform(corpus)
+    svd = TruncatedSVD()
+    lsa_vecs = svd.fit_transform(tfid_mat)
+    similarity_vec = [
+        cosine_similarity(lsa_vecs[i].reshape(1, -1), lsa_vecs[i + 1].reshape(1, -1))[
+            0, 0
+        ]
+        for i in range(lsa_vecs.shape[1])
+    ]
+    lsa_overlap_avg = np.mean(similarity_vec)
+    lsa_overlap_std = np.std(similarity_vec, ddof=1)
+
+    return lsa_overlap_avg, lsa_overlap_std
 
 
 def extract_coh_metrix_features(essay: str) -> dict:
@@ -101,9 +120,12 @@ def extract_coh_metrix_features(essay: str) -> dict:
 
     # Readability metrics
     flesch_reading_ease = textstat.flesch_reading_ease(essay)
+    flesh_kincaid_grade = textstat.flesch_kincaid_grade(essay)
     smog_index = textstat.smog_index(essay)
 
-    # Lexical diversity
+    #####################################
+    ######### Lexical diversity #########
+    #####################################
     unique_words = len(set(words))
     lexical_diversity = unique_words / num_words if num_words else 0
 
@@ -122,20 +144,44 @@ def extract_coh_metrix_features(essay: str) -> dict:
         sum(1 for token in doc if token.pos_ == "VERB") / num_words if num_words else 0
     )  # normalized ratio of verbs
     # number of familiar words: difficult to get at the moment
-    connectives = sum(
-        1
-        for token in doc
-        if token.text.lower()
-        in [
-            "however",
-            "therefore",
-            "moreover",
-            "thus",
-            "furthermore",
+
+    ###############################
+    ######### Connectives #########
+    ###############################
+    connectives_english = set(
+        [
             "and",
+            "also",
+            "moreover",
+            "furthermore",
+            "besides",
+            "additionally",
             "but",
+            "however",
+            "on the other hand",
             "although",
+            "whereas",
+            "nevertheless",
+            "nonetheless",
+            "because",
+            "therefore",
+            "thus",
+            "so",
+            "before",
+            "after",
+            "meanwhile",
+            "if",
+            "unless",
+            "for example",
+            "for instance",
+            "in conclusion",
+            "overall",
+            "likewise"
         ]
+    )
+
+    connectives = (
+        sum(1 for token in doc if token.text.lower() in connectives_english) / num_words
     )
 
     ## syntactic simplicity
@@ -148,6 +194,9 @@ def extract_coh_metrix_features(essay: str) -> dict:
     words_concreteness = [get_concreteness(word) for word in words]
     avg_concreteness = sum(words_concreteness) / len(words_concreteness)
 
+    ########################################
+    ######### Referential Cohesion #########
+    ########################################
     ## noun overlap, adjacent sentences, binary, mean
     noun_overlaps = []
     for i in range(num_sentences - 1):
@@ -174,7 +223,14 @@ def extract_coh_metrix_features(essay: str) -> dict:
         lemma_overlaps.append(1 if curr_set.intersection(next_set) else 0)
     avg_adj_lemma_overlaps = sum(lemma_overlaps) / len(lemma_overlaps)
 
-    # syntactic complexity
+    ##################################################
+    ######### Latent Semantic Analysis (LSA) #########
+    ##################################################
+    # LSA overlap, adjacent sentences, mean
+    sents_stripped = [sent.text.strip() for sent in sentences if sent.text.strip()]
+    lsa_overlap_avg, lsa_overlap_std = compute_lsa_overlap(sents_stripped)
+
+    ######### syntactic complexity #########
     num_words_before_verb = []
     for sentence in sentences:
         count = 0
@@ -206,6 +262,7 @@ def extract_coh_metrix_features(essay: str) -> dict:
         "avg_letter_count": avg_letter_count,
         "std_letter_count": std_letter_count,
         "flesch_reading_ease": flesch_reading_ease,
+        "flesh_kincaid_grade": flesh_kincaid_grade,
         "smog_index": smog_index,
         "lexical_diversity": lexical_diversity,
         "num_stopwords": num_stopwords,
@@ -216,6 +273,8 @@ def extract_coh_metrix_features(essay: str) -> dict:
         "avg_adj_noun_overlaps": avg_adj_noun_overlaps,
         "avg_adj_arg_overlaps": avg_adj_arg_overlaps,
         "avg_adj_lemma_overlaps": avg_adj_lemma_overlaps,
+        "lsa_overlap_avg": lsa_overlap_avg,
+        "lsa_overlap_std": lsa_overlap_std,
         "connectives": connectives,
         "avg_words_before_verb": avg_words_before_verb,
     }
