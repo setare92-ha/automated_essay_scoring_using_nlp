@@ -8,6 +8,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from spacy_syllables import SpacySyllables
+from spellchecker import SpellChecker
 
 # Downloading resources for nltk
 nltk.download("stopwords")
@@ -251,6 +252,11 @@ def extract_coh_metrix_features(essay: str) -> dict:
         else 0
     )
 
+    ###### Check spelling #####
+    spell = SpellChecker()
+    misspelled = spell.unknown(words)
+    num_misspelled = len(misspelled)/num_words if len(words) else 0
+
     return {
         # descriptive
         "num_words": num_words,
@@ -277,4 +283,5 @@ def extract_coh_metrix_features(essay: str) -> dict:
         "lsa_overlap_std": lsa_overlap_std,
         "connectives": connectives,
         "avg_words_before_verb": avg_words_before_verb,
+        "num_misspelled": num_misspelled
     }
