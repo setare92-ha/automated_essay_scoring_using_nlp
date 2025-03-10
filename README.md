@@ -82,7 +82,6 @@ A pipeline was developed for cross-validation and hyperparameter tuning, with me
 ├───main.ipynb<br>
 ├───README.md<br>
 ├───images<br>
-├───literature<br>
 └───src<br>
     │   feature_engineering.py<br>
     │   post_processing.py<br>
