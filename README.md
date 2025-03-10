@@ -79,10 +79,10 @@ A pipeline was developed for cross-validation and hyperparameter tuning, with me
 ├───images <br>
 ├───literature<br>
 ├───src<br>
-|   ├─── feature_engineering.py<br>
-|   ├─── post_processing.py<br>
-|   ├─── preprocessing.py<br>
-|   ├─── visualizations.py<br>
+|       feature_engineering.py<br>
+|       post_processing.py<br>
+|       preprocessing.py<br>
+|       visualizations.py<br>
 ├───feature_engineered_data.csv<br>
 ├───training_set_rel3.tsv <br>
 ├───main.ipynb <br>
