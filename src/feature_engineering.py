@@ -17,6 +17,7 @@ nlp.add_pipe("syllables", after="tagger")
 
 # Load concreteness data once
 # Load and clean the concreteness dataset
+# source: https://github.com/bodowinter/good_metaphors
 concreteness_df = pd.read_csv("./data/brysbaert_2014_concreteness.csv").dropna(subset=["Word"])
 
 # Build the dictionary safely, ignoring missing or non-string values

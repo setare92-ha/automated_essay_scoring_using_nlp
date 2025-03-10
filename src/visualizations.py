@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 from sklearn.metrics import cohen_kappa_score
 from statsmodels.stats import inter_rater as irr
@@ -29,6 +30,8 @@ def compare_raters(df):
         ax[i//4,i%4].text(0.05, 0.65, rf"$\kappa = {cohen_kappa[-1]:.2f}$", 
                        transform=ax[i//4, i%4].transAxes, 
                        fontsize=10, color='black')
+        
+        ax[i//4,i%4].yaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
         
         
     print(f"Average of Cohen's Kappa is: {np.mean(cohen_kappa):.2f}")
