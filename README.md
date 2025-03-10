@@ -76,16 +76,18 @@ A pipeline was developed for cross-validation and hyperparameter tuning, with me
 - Jupyter Notebook: [Link](https://github.com/setare92-ha/education_early_intervention/blob/main/main.ipynb)
 - Presentation: WIP
 ## Navigating the Repository
-├───images <br>
-├───literature<br>
-├───src<br>
-|       feature_engineering.py<br>
-|       post_processing.py<br>
-|       preprocessing.py<br>
-|       visualizations.py<br>
+├───.gitignore <br>
 ├───feature_engineered_data.csv<br>
-├───training_set_rel3.tsv <br>
-├───main.ipynb <br>
+├───training_set_rel3.tsv<br>
+├───main.ipynb<br>
+├───README.md<br>
+├───images<br>
+├───literature<br>
+└───src<br>
+    │   feature_engineering.py<br>
+    │   post_processing.py<br>
+    │   preprocessing.py<br>
+    │   visualizations.py<br>
 └───presentation.pdf<br>
 
 
