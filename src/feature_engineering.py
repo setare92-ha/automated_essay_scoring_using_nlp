@@ -15,273 +15,113 @@ nltk.download("stopwords")
 nlp = spacy.load("en_core_web_sm")
 nlp.add_pipe("syllables", after="tagger")
 
+# Load concreteness data once
+# Load and clean the concreteness dataset
+concreteness_df = pd.read_csv("./data/brysbaert_2014_concreteness.csv").dropna(subset=["Word"])
 
-def get_concreteness(word):
-    df_concreteness = pd.read_csv("./data/brysbaert_2014_concreteness.csv")
-    dict_concreteness = {
-        key: value
-        for key, value in zip(df_concreteness["Word"], df_concreteness["Conc.M"])
-    }
-    return dict_concreteness.get(word.lower(), 0)
-
-
-def extract_nouns(sentence):
-    sent_nouns = {token.lemma_.lower() for token in sentence if token.pos_ == "NOUN"}
-    return sent_nouns
+# Build the dictionary safely, ignoring missing or non-string values
+concreteness_dict = {
+    str(key).lower(): value
+    for key, value in zip(concreteness_df["Word"], concreteness_df["Conc.M"])
+    if pd.notnull(key)
+}
 
 
-def extract_arguments(sentence):
-    sent_args = {
-        token.lemma_.lower()
-        for token in sentence
-        if token.dep_ in ["nsubj", "nsubjpass", "dobj", "pobj", "iobj"]
-        or token.pos_ == "PRON"
-    }
-    return sent_args
+# Preload stopwords and spellchecker
+stopwords = set(nltk.corpus.stopwords.words("english"))
+spell = SpellChecker()
 
+# Function to get word concreteness
+get_concreteness = np.vectorize(lambda word: concreteness_dict.get(word.lower(), 0))
 
-def extract_lemmas(sentence):
-    sent_lemmas = {token.lemma_ for token in sentence}
-    return sent_lemmas
-
+# Function to compute LSA overlap
+vectorizer = TfidfVectorizer()
+svd = TruncatedSVD()
 
 def compute_lsa_overlap(corpus):
-    vectorizer = TfidfVectorizer()
+    if len(corpus) < 2:
+        return 0
     tfid_mat = vectorizer.fit_transform(corpus)
-    svd = TruncatedSVD()
     lsa_vecs = svd.fit_transform(tfid_mat)
     similarity_vec = [
-        cosine_similarity(lsa_vecs[i].reshape(1, -1), lsa_vecs[i + 1].reshape(1, -1))[
-            0, 0
-        ]
-        for i in range(lsa_vecs.shape[1])
+        cosine_similarity(lsa_vecs[i].reshape(1, -1), lsa_vecs[i + 1].reshape(1, -1))[0, 0]
+        for i in range(lsa_vecs.shape[0] - 1)
     ]
-    lsa_overlap_avg = np.mean(similarity_vec)
-    lsa_overlap_std = np.std(similarity_vec, ddof=1)
+    return np.mean(similarity_vec)
 
-    return lsa_overlap_avg, lsa_overlap_std
+# Bulk feature extractor
 
+def extract_features_bulk(essays):
+    docs = list(nlp.pipe(essays, batch_size=100, n_process=1))
 
-def extract_coh_metrix_features(essay: str) -> dict:
-    """
-    The function extracts Coh-Metrix-like features.
-    Arguments:
-        essay: string containing the essay text
-    Outouts:
-        A dictionary containing Coh-Metrix-like metrics as follows:
-    """
-    doc = nlp(essay)
-    words = [token.text for token in doc if token.is_alpha]
-    sentences = list(doc.sents)
+    features = []
 
-    ###############################
-    ######### Descriptive #########
-    ###############################
+    for doc in docs:
+        words = [token.text for token in doc if token.is_alpha]
+        sentences = list(doc.sents)
+        num_words = len(words)
+        num_sentences = len(sentences)
 
-    ## number of words and sentences
-    num_words = len(words)
-    num_sentences = len(sentences)
+        # Sentence lengths
+        num_words_per_sentence = [len(list(sent)) for sent in sentences]
 
-    ## sentence length, avg & std
-    num_words_per_sentence = []
-    for sentence in sentences:
-        num_words_per_sentence.append(
-            len([token.text for token in sentence if token.is_alpha])
-        )
+        # Length-based features
+        avg_sentence_length = np.mean(num_words_per_sentence) if num_sentences else 0
+        std_sentence_length = np.std(num_words_per_sentence, ddof=1) if num_sentences > 1 else 0
 
-    if num_sentences:
-        avg_sentence_length = np.mean(num_words_per_sentence)
-        std_sentence_length = np.std(num_words_per_sentence, ddof=1)
-    else:
-        avg_sentence_length = 0
-        std_sentence_length = 0
+        # Word-level features
+        num_syllables = [token._.syllables_count for token in doc if token.is_alpha]
+        num_letters = [len(token.text) for token in doc if token.is_alpha]
 
-    ## word length, number of syllables, avg & std
-    ## word length, number of letters, avg & std
-    num_syllables_per_word = []
-    num_letters_per_word = []
-    words_token = [token for token in doc if token.is_alpha]
+        avg_syllable_count = np.mean(num_syllables) if num_syllables else 0
+        std_syllable_count = np.std(num_syllables, ddof=1) if len(num_syllables) > 1 else 0
 
-    for token in words_token:
-        num_syllables_per_word.append(token._.syllables_count)
-        num_letters_per_word.append(len(token.text))
+        avg_letter_count = np.mean(num_letters) if num_letters else 0
+        std_letter_count = np.std(num_letters, ddof=1) if len(num_letters) > 1 else 0
 
-    if num_words:
-        avg_syllable_count = np.mean(num_syllables_per_word)
-        std_syllable_count = np.std(num_syllables_per_word, ddof=1)
+        # Readability
+        flesch_reading_ease = textstat.flesch_reading_ease(doc.text)
+        flesh_kincaid_grade = textstat.flesch_kincaid_grade(doc.text)
+        smog_index = textstat.smog_index(doc.text)
 
-        avg_letter_count = np.mean(num_letters_per_word)
-        std_letter_count = np.std(num_letters_per_word, ddof=1)
-    else:
-        avg_syllable_count = 0
-        std_syllable_count = 0
+        # Lexical diversity
+        lexical_diversity = len(set(words)) / num_words if num_words else 0
 
-        avg_letter_count = 0
-        std_letter_count = 0
+        # Stopwords, pronouns, verbs
+        num_stopwords = sum(1 for word in words if word.lower() in stopwords) / num_words
+        num_pronouns = sum(1 for token in doc if token.pos_ == "PRON") / num_words
+        num_verbs = sum(1 for token in doc if token.pos_ == "VERB") / num_words
 
-    # Readability metrics
-    flesch_reading_ease = textstat.flesch_reading_ease(essay)
-    flesh_kincaid_grade = textstat.flesch_kincaid_grade(essay)
-    smog_index = textstat.smog_index(essay)
+        # Syntactic simplicity
+        avg_tree_depth = sum(len(list(token.ancestors)) for token in doc) / num_words
 
-    #####################################
-    ######### Lexical diversity #########
-    #####################################
-    unique_words = len(set(words))
-    lexical_diversity = unique_words / num_words if num_words else 0
+        # Word concreteness
+        avg_concreteness = np.mean(get_concreteness(words)) if num_words else 0
 
-    ##############################################################
-    ######### Text easability principal component scores #########
-    ##############################################################
-    # cohesion and discourse markers
-    stopwords = set(nltk.corpus.stopwords.words("english"))
-    num_stopwords = sum(1 for token in words if token.lower() in stopwords) / num_words
+        # Misspellings
+        misspelled = spell.unknown(words)
+        num_misspelled = len(misspelled) / num_words
 
-    ## narrativity metrics
-    num_pronouns = (
-        sum(1 for token in doc if token.pos_ == "PRON") / num_words if num_words else 0
-    )  # normalized ratio of pronouns
-    num_verbs = (
-        sum(1 for token in doc if token.pos_ == "VERB") / num_words if num_words else 0
-    )  # normalized ratio of verbs
-    # number of familiar words: difficult to get at the moment
+        # LSA Overlap
+        sents_text = [sent.text.strip() for sent in sentences if sent.text.strip()]
+        lsa_overlap_avg = compute_lsa_overlap(sents_text)
 
-    ###############################
-    ######### Connectives #########
-    ###############################
-    connectives_english = set(
-        [
-            "and",
-            "also",
-            "moreover",
-            "furthermore",
-            "besides",
-            "additionally",
-            "but",
-            "however",
-            "on the other hand",
-            "although",
-            "whereas",
-            "nevertheless",
-            "nonetheless",
-            "because",
-            "therefore",
-            "thus",
-            "so",
-            "before",
-            "after",
-            "meanwhile",
-            "if",
-            "unless",
-            "for example",
-            "for instance",
-            "in conclusion",
-            "overall",
-            "likewise"
-        ]
-    )
+        # Store features
+        features.append([
+            num_words, num_sentences, avg_sentence_length, std_sentence_length,
+            avg_syllable_count, std_syllable_count, avg_letter_count, std_letter_count,
+            flesch_reading_ease, flesh_kincaid_grade, smog_index,
+            lexical_diversity, num_stopwords, num_pronouns, num_verbs,
+            avg_tree_depth, avg_concreteness, num_misspelled, lsa_overlap_avg
+        ])
 
-    connectives = (
-        sum(1 for token in doc if token.text.lower() in connectives_english) / num_words
-    )
+    # Convert to DataFrame
+    feature_names = [
+        "num_words", "num_sentences", "avg_sentence_length", "std_sentence_length",
+        "avg_syllable_count", "std_syllable_count", "avg_letter_count", "std_letter_count",
+        "flesch_reading_ease", "flesh_kincaid_grade", "smog_index",
+        "lexical_diversity", "num_stopwords", "num_pronouns", "num_verbs",
+        "avg_tree_depth", "avg_concreteness", "num_misspelled", "lsa_overlap_avg"
+    ]
 
-    ## syntactic simplicity
-    # avg_sentence_length is one
-    avg_tree_depth = (
-        sum(len(list(token.ancestors)) for token in doc) / num_words if num_words else 0
-    )
-
-    ## word concreteness
-    words_concreteness = [get_concreteness(word) for word in words]
-    avg_concreteness = sum(words_concreteness) / len(words_concreteness)
-
-    ########################################
-    ######### Referential Cohesion #########
-    ########################################
-    ## noun overlap, adjacent sentences, binary, mean
-    noun_overlaps = []
-    for i in range(num_sentences - 1):
-        curr_set = extract_nouns(sentences[i])
-        next_set = extract_nouns(sentences[i + 1])
-        noun_overlaps.append(1 if curr_set.intersection(next_set) else 0)
-
-    avg_adj_noun_overlaps = sum(noun_overlaps) / len(noun_overlaps)
-
-    ## argument overlap, adjacent sentences, binary, mean
-    arg_overlaps = []
-    for i in range(num_sentences - 1):
-        curr_set = extract_arguments(sentences[i])
-        next_set = extract_arguments(sentences[i + 1])
-        arg_overlaps.append(1 if curr_set.intersection(next_set) else 0)
-
-    avg_adj_arg_overlaps = sum(arg_overlaps) / len(arg_overlaps)
-
-    ## stem/lemma overlap, adjacent sentences, binary, mean
-    lemma_overlaps = []
-    for i in range(num_sentences - 1):
-        curr_set = extract_lemmas(sentences[i])
-        next_set = extract_lemmas(sentences[i + 1])
-        lemma_overlaps.append(1 if curr_set.intersection(next_set) else 0)
-    avg_adj_lemma_overlaps = sum(lemma_overlaps) / len(lemma_overlaps)
-
-    ##################################################
-    ######### Latent Semantic Analysis (LSA) #########
-    ##################################################
-    # LSA overlap, adjacent sentences, mean
-    sents_stripped = [sent.text.strip() for sent in sentences if sent.text.strip()]
-    lsa_overlap_avg, lsa_overlap_std = compute_lsa_overlap(sents_stripped)
-
-    ######### syntactic complexity #########
-    num_words_before_verb = []
-    for sentence in sentences:
-        count = 0
-        verb_found = False
-
-        for token in sentence:
-            if token.pos_ == "VERB":
-                verb_found = True
-                break
-            count += 1
-
-        if verb_found:
-            num_words_before_verb.append(count)
-
-    avg_words_before_verb = (
-        sum(num_words_before_verb) / len(num_words_before_verb)
-        if len(num_words_before_verb)
-        else 0
-    )
-
-    ###### Check spelling #####
-    spell = SpellChecker()
-    misspelled = spell.unknown(words)
-    num_misspelled = len(misspelled)/num_words if len(words) else 0
-
-    return {
-        # descriptive
-        "num_words": num_words,
-        "num_sentences": num_sentences,
-        "avg_sentence_length": avg_sentence_length,
-        "std_sentence_length": std_sentence_length,
-        "avg_syllable_count": avg_syllable_count,
-        "std_syllable_count": std_syllable_count,
-        "avg_letter_count": avg_letter_count,
-        "std_letter_count": std_letter_count,
-        "flesch_reading_ease": flesch_reading_ease,
-        "flesh_kincaid_grade": flesh_kincaid_grade,
-        "smog_index": smog_index,
-        "lexical_diversity": lexical_diversity,
-        "num_stopwords": num_stopwords,
-        "num_pronouns": num_pronouns,
-        "num_verbs": num_verbs,
-        "avg_tree_depth": avg_tree_depth,
-        "avg_concreteness": avg_concreteness,
-        "avg_adj_noun_overlaps": avg_adj_noun_overlaps,
-        "avg_adj_arg_overlaps": avg_adj_arg_overlaps,
-        "avg_adj_lemma_overlaps": avg_adj_lemma_overlaps,
-        "lsa_overlap_avg": lsa_overlap_avg,
-        "lsa_overlap_std": lsa_overlap_std,
-        "connectives": connectives,
-        "avg_words_before_verb": avg_words_before_verb,
-        "num_misspelled": num_misspelled
-    }
+    return pd.DataFrame(features, columns=feature_names)
