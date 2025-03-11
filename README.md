@@ -64,12 +64,31 @@ A pipeline was developed for cross-validation and hyperparameter tuning, with me
 
 ## Results and Recommendations
 1. The cross-validated and test mean squared error of the model are close to 2 (units: normalized score).
-2. The best-fit model has an $R^2$ of 0.68. This means that the model explains only 68% of the variability in the target variable (normalized scores). Although $R^2$ matters more for inferential modeling, a moderately high $R^2$ can still yield a strong predictive model.
-3. The random forest regressor achieved a high Cohen's kappa score, 0.98. We note that quadratic weighting is being used (per the Kaggle competition's instructions). 
+
+2. The best-fit model has an $R^2$ of roughly 0.6. This means that the model explains only 60% of the variability in the target variable (normalized scores). Although $R^2$ matters more for inferential modeling, a moderate value of $R^2$ can still yield a strong predictive model.
+
+3. The random forest regressor achieved a quadratic weighted kappa score of 0.69. This is barely meeting the minimum requirement for an acceptable AES model (the minimum acceptable score is 0.7 per Doewes et al., 2023).
+
+4. The model's reliance on length-based features highlights a *known bias* in Automated Essay Scoring (AES) systems, where essay length can correlate with higher scores. Designing a richer set of features (including embeddings from a transformer-based model) is expected to improve this behavior.
 
 ## Limitations and Next Steps
-1. The model is doing well overall. We note a minor difference between the current study and the actual instructions included for the competition. In the actual Kaggle competition, the validation and test sets are provided separately (the test set is actually not provided; it is only used to evaluate the final models). In the current study, we're using the actual train set provided to make our own validation and test sets. This is not problematic per se, but is worth noting. 
-2. While the current model has a high performance (a quadratic kappa score of 0.98, which is greater than the human raters' agreement), exploring transformer models or hierarchical models may be worth due to their strength in not only grading the essays but also identifying the levels at which essays may be lacking. This will provide a good platform for providing students with constructive feedback. 
+1. The model can benefit from enriched features that can help improve its performance. The current model may rely on length-based features far more than features that capture the context and meaning of the text. This is a known problem with AES engines. Enriching the features with sentence-embeddings using transformer models has been shown to help resolve this behavior (Doewes et al., 2021).
+
+2. Training one model per essay set is expected to improve performance. Each essay has a different prompt and different score range. Adding features
+
+## References
+
+1. Ghanta, Harshanti, Automated essay evaluation using natural language processing and machine learning, 2019, Master of Science Thesis. [Link](https://csuepress.columbusstate.edu/theses_dissertations/327/) 
+
+2. Ludwig, S., Mayer, C., Hanse, C., Eilers, K., Brandt, S., Automated essay scoring using transformer models. [Link](https://arxiv.org/abs/2110.06874)
+
+3. McNamara, D., Crossley, S., Roscoe, R., Allen, L., Dai, J., A hierarchical classification approach to automated essay scoring, Assessing Writing Journal, 2015. [Link](https://www.sciencedirect.com/science/article/abs/pii/S1075293514000427)
+
+4. McNamara, D. S., Graesser, A. C., McCarthy, P., & Cai, Z. Automated Evaluation of Text and Discourse with Coh-Metrix. Cambridge: Cambridge University Press, 2014. [Link](https://www.researchgate.net/profile/Danielle-Mcnamara/publication/285651904_Coh-Metrix_An_Automated_Tool_for_Theoretical_and_Applied_Natural_Language_Processing/links/5dc45b4b4585151435f2ee91/Coh-Metrix-An-Automated-Tool-for-Theoretical-and-Applied-Natural-Language-Processing.pdf)
+
+5. Doewes, A., Pechenizkiy, M., On the limitations of human-computer agreement in automated essay scoring, International, educational data mining society, 2021. [Link](https://files.eric.ed.gov/fulltext/ED615602.pdf)
+
+6. Doewes, A., Kurdhi, N., Saxena, A., Evaluating quadratic weighted kappa as the standard performance metric for automated essay scoring, Educational data mining, 2023. [Link](https://educationaldatamining.org/EDM2023/proceedings/2023.EDM-long-papers.9/index.html#Xdoewes2021limitations)
 
 ## Resources
 - Data: [Link](https://www.kaggle.com/competitions/asap-aes)
