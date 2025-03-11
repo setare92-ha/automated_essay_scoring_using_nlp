@@ -1,4 +1,4 @@
-# Authomated Essay Scoring (AES) Using NLP
+# Automated Essay Scoring (AES) Using NLP
 <img src="./images/essay_grading.png" 
     Width="1000">
 *Credits: ChatGPT*
