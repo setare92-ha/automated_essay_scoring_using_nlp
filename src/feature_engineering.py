@@ -15,10 +15,9 @@ nltk.download("stopwords")
 nlp = spacy.load("en_core_web_sm")
 nlp.add_pipe("syllables", after="tagger")
 
-# Load concreteness data once
 # Load and clean the concreteness dataset
 # source: https://github.com/bodowinter/good_metaphors
-concreteness_df = pd.read_csv("./data/brysbaert_2014_concreteness.csv").dropna(subset=["Word"])
+concreteness_df = pd.read_csv("https://raw.githubusercontent.com/setare92-ha/automated_essay_scoring_using_nlp/refs/heads/main/clean_data/brysbaert_2014_concreteness.csv").dropna(subset=["Word"])
 
 # Build the dictionary safely, ignoring missing or non-string values
 concreteness_dict = {
@@ -49,8 +48,6 @@ def compute_lsa_overlap(corpus):
         for i in range(lsa_vecs.shape[0] - 1)
     ]
     return np.mean(similarity_vec)
-
-# Bulk feature extractor
 
 def extract_features_bulk(essays):
     docs = list(nlp.pipe(essays, batch_size=100, n_process=1))
