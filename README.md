@@ -62,6 +62,12 @@ Various algorithms have been used for automated essay scoring (AES), including L
 
 A pipeline was developed for 3-fold cross-validation and hyperparameter tuning, with mean squared error as the evaluation metric. Since scores were originally ordinal but normalized to a continuous scale, a denormalization step was applied to map predictions back to the original scale. Model performance was assessed using Quadratic Weighted Kappa (QWK), achieving a *substantial agreement* of **0.69** with human raters (for the interpretation of scores, see Doewes et al., 2023). Model's cross-validated as well as test **MSE** are close to **2 (units of normalized score)**. The **$R^2$ score** is roughly **0.6**.
 
+<p align="center"><img src="./images/importance_factors.png" 
+    Width="500">
+
+*Figure 4. Feature importances in the final model. Note the moderate reliance of the model on length-based features.*
+
+
 ## Results and Recommendations
 1. The cross-validated and test mean squared error of the model are close to 2 (units: normalized score).
 
