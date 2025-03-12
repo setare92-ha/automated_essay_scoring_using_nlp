@@ -73,7 +73,7 @@ A pipeline was developed for 3-fold cross-validation and hyperparameter tuning, 
 
 2. The best-fit model has an $R^2$ of roughly 0.6. This means that the model explains only 60% of the variability in the target variable (normalized scores). Although $R^2$ matters more for inferential modeling, a moderate value of $R^2$ can still yield a strong predictive model.
 
-3. The random forest regressor achieved a quadratic weighted kappa score of 0.69. This is barely meeting the minimum requirement for an acceptable AES model (the minimum acceptable score is 0.7 per Doewes et al., 2023).
+3. The random forest regressor achieved a quadratic weighted kappa score of 0.69. This is barely meeting the minimum requirement for an acceptable AES model (the minimum acceptable score is 0.7 per Doewes et al., 2023). However, since 0.69 is within 0.1 (0.75) of the human raters' aggreement, it can still be deemed acceptable (Doewes et al. 2021).
 
 4. The model's reliance on length-based features highlights a *known bias* in Automated Essay Scoring (AES) systems, where essay length can correlate with higher scores. Designing a richer set of features (including embeddings from a transformer-based model) is expected to improve this behavior.
 
